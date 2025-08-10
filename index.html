@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Salary Growth Projection</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: #fff;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2.5em;
+      margin-bottom: 20px;
+      color: #00ffe7;
+      text-shadow: 0 0 10px #00ffe7;
+    }
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 0 30px rgba(0, 255, 231, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    label {
+      display: block;
+      margin: 15px 0 5px;
+      font-weight: 600;
+      color: #ffffffcc;
+    }
+    input[type="number"] {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 1em;
+      box-shadow: inset 0 0 5px rgba(0, 255, 231, 0.2);
+    }
+    input:focus {
+      outline: none;
+      box-shadow: 0 0 10px #00ffe7;
+    }
+    .chart-toggle {
+      margin: 10px 0 20px;
+      color: #ffffffcc;
+    }
+    .chart-toggle label {
+      margin-right: 20px;
+      cursor: pointer;
+    }
+    button {
+      background: linear-gradient(90deg, #00ffe7, #0077ff);
+      color: white;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      width: 100%;
+      font-size: 1.1em;
+      font-weight: bold;
+      margin-top: 10px;
+      box-shadow: 0 0 15px rgba(0, 255, 231, 0.3);
+      transition: transform 0.2s ease;
+    }
+    button:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 20px rgba(0, 255, 231, 0.5);
+    }
+    canvas {
+      margin-top: 30px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 0 0 20px rgba(0, 255, 231, 0.2);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 15px rgba(0, 255, 231, 0.2);
+    }
+    th, td {
+      padding: 12px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+    th {
+      background: rgba(0, 255, 231, 0.1);
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    @media screen and (max-width: 600px) {
+      .container {
+        padding: 20px;
+      }
+      h1 {
+        font-size: 2em;
+      }
+      input, button {
+        font-size: 1em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Salary Growth Projection</h1>
+
+    <label>Starting Monthly Salary (₹)</label>
+    <input type="number" id="startSalary" value="35000" />
+
+    <label>Career Duration (Years)</label>
+    <input type="number" id="years" value="20" />
+
+    <label>Minimum Increment (%)</label>
+    <input type="number" id="minIncrement" value="8" />
+
+    <label>Additional DA/Benefits Growth (%)</label>
+    <input type="number" id="daGrowth" value="2" />
+
+    <label>Promotion Boost (%)</label>
+    <input type="number" id="promotionBoost" value="20" />
+
+    <label>Promotion Interval (Years)</label>
+    <input type="number" id="promotionInterval" value="4" />
+
+    <div class="chart-toggle">
+      <label><input type="radio" name="chartType" value="monthly" checked onchange="calculateSalary()" /> Monthly</label>
+      <label><input type="radio" name="chartType" value="annual" onchange="calculateSalary()" /> Annual</label>
+    </div>
+
+    <button onclick="calculateSalary()">Calculate Projection</button>
+
+    <canvas id="salaryChart" height="80"></canvas>
+
+    <table id="salaryTable">
+      <thead>
+        <tr>
+          <th>Year</th>
+          <th>Monthly Salary (₹)</th>
+          <th>Annual Salary (₹)</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    function calculateSalary() {
+      const startSalary = parseFloat(document.getElementById("startSalary").value);
+      const years = parseInt(document.getElementById("years").value);
+      const minInc = parseFloat(document.getElementById("minIncrement").value) / 100;
+      const daGrowth = parseFloat(document.getElementById("daGrowth").value) / 100;
+      const promoBoost = parseFloat(document.getElementById("promotionBoost").value) / 100;
+      const promoInterval = parseInt(document.getElementById("promotionInterval").value);
+      const chartType = document.querySelector('input[name="chartType"]:checked')?.value || "monthly";
+
+      let salary = startSalary;
+      let monthlyData = [];
+      let annualData = [];
+      let labels = [];
+      let totalEarnings = 0;
+
+      const tableBody = document.querySelector("#salaryTable tbody");
+      tableBody.innerHTML = "";
+
+      for (let year = 1; year <= years; year++) {
+        salary *= (1 + minInc + daGrowth);
+        if (year % promoInterval === 0) {
+          salary *= (1 + promoBoost);
+        }
+
+        monthlyData.push(Math.round(salary));
+        annualData.push(Math.round(salary * 12));
+        labels.push("Year " + year);
+        totalEarnings += salary * 12;
+
+        tableBody.innerHTML += `<tr>
+          <td>${year}</td>
+          <td>${salary.toFixed(2)}</td>
+          <td>${(salary * 12).toFixed(2)}</td>
+        </tr>`;
+      }
+
+      tableBody.innerHTML += `<tr style="font-weight:bold; background:rgba(0, 255, 231, 0.1);">
+        <td colspan="2">Total Career Earnings</td>
+        <td>${totalEarnings.toFixed(2)}</td>
+      </tr>`;
+
+      const chartData = chartType === "monthly" ? monthlyData : annualData;
+      const chartLabel = chartType === "monthly" ? 'Monthly Salary (₹)' : 'Annual Salary (₹)';
+      const ctx = document.getElementById("salaryChart").getContext("2d");
+
+      if (window.salaryChartInstance) {
+        window.salaryChartInstance.destroy();
+      }
+
+      window.salaryChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: chartLabel,
+            data: chartData,
+            borderColor: '#00ffe7',
+            backgroundColor: 'rgba(0, 255, 231, 0.1)',
+            pointBackgroundColor: '#00ffe7',
+            pointBorderColor: '#fff',
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            fill: true,
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          animation: {
+            duration: 1000,
+            easing: 'easeInOutQuad'
+          },
+          scales: {
+            x: {
+              title: { display: true, text: 'Years', color: '#ffffffcc' },
+              ticks: { color: '#ffffffcc' }
+            },
+            y: {
+              title: { display: true, text: chartLabel, color: '#ffffffcc' },
+              ticks: {
+                color: '#ffffffcc',
+                callback: function(value) {
+                  return '₹' + Number(value).toLocaleString();
+                }
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: { color: '#ffffffcc', font: { size: 14 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(tooltipItem) {
+                  return tooltipItem.dataset.label + ': ₹' + Number(tooltipItem.raw).toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
